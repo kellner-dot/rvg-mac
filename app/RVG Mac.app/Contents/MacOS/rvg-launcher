@@ -1,0 +1,20 @@
+#!/bin/bash
+# RVG Mac.app launcher.
+# - If the agent is running: open the web viewer.
+# - If not: offer to start it (admin prompt), then open the viewer.
+set -uo pipefail
+
+VIEWER="http://127.0.0.1:8899/rvd/view"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "$VIEWER" 2>/dev/null || echo "000")
+
+if [ "$CODE" != "200" ]; then
+    ANSWER=$(osascript -e 'display dialog "RVG Mac agent is not running." buttons {"Start Agent", "Cancel"} default button "Start Agent" with title "RVG Mac"' 2>/dev/null)
+    if [[ "$ANSWER" == *"Start Agent"* ]]; then
+        osascript -e 'do shell script "launchctl kickstart -k system/com.seth.rvg" with administrator privileges' 2>/dev/null
+        sleep 3
+    else
+        exit 0
+    fi
+fi
+
+open "$VIEWER"
