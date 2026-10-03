@@ -51,6 +51,13 @@ ALLOW_LIST = [s.strip() for s in
               os.environ.get("RVG_ALLOW", "100.64.0.0/10").split(",")
               if s.strip()]
 UPLOAD_MAX_MB = int(os.environ.get("RVG_UPLOAD_MAX_MB", "500"))
+# Download allowlist: GET /rvd/download?path= may only serve files under
+# these roots. Extra roots via RVG_DOWNLOAD_ALLOW (comma-separated).
+# Sensitive names/paths (tokens, SSH keys, system dirs) are blocked
+# explicitly even under an allowlisted root. Everything else -> 403.
+DOWNLOAD_ALLOW_EXTRA = [s.strip() for s in
+                        os.environ.get("RVG_DOWNLOAD_ALLOW", "").split(",")
+                        if s.strip()]
 
 CONSOLE_USER = "sethkellner"
 # Shared layout: all Mac-agent state lives under ~/rvd-mac/ so every Kavi
@@ -102,6 +109,34 @@ def _ip_allowed(ip):
     if _is_loopback(ip):
         return True
     return any(_ip_in_cidr(ip, c) for c in ALLOW_LIST)
+
+def _download_roots():
+    """Canonical allowlist roots for /rvd/download."""
+    roots = [os.path.realpath(RVD_DIR),
+             os.path.realpath(os.path.expanduser("~/Downloads"))]
+    for extra in DOWNLOAD_ALLOW_EXTRA:
+        roots.append(os.path.realpath(os.path.expanduser(extra)))
+    return roots
+
+# Basenames never served, and path parts never served, even under an
+# allowlisted root (defense in depth if RVG_DOWNLOAD_ALLOW is widened).
+_DOWNLOAD_BLOCKED_NAMES = ("token.txt",)
+_DOWNLOAD_BLOCKED_PARTS = (".ssh", ".gnupg", "Library/Keychains")
+
+def _download_allowed(real):
+    """True if the realpath'd file may be served by /rvd/download."""
+    base = os.path.basename(real).lower()
+    if base in _DOWNLOAD_BLOCKED_NAMES:
+        return False
+    low = real.lower()
+    for part in _DOWNLOAD_BLOCKED_PARTS:
+        pl = part.lower()
+        if ("/" + pl + "/") in low or low.endswith("/" + pl):
+            return False
+    if real == "/etc" or real.startswith("/etc/"):
+        return False
+    return any(real == r or real.startswith(r + os.sep)
+               for r in _download_roots())
 
 # --------------------------------------------------------------- screen
 
@@ -490,6 +525,8 @@ class Handler(BaseHTTPRequestHandler):
         if not path:
             return self._json({"ok": False, "error": "need ?path="}, 400)
         real = os.path.realpath(os.path.expanduser(path))
+        if not _download_allowed(real):
+            return self._json({"ok": False, "error": "path not allowed"}, 403)
         if not os.path.isfile(real):
             return self._json({"ok": False, "error": "not found"}, 404)
         try:
