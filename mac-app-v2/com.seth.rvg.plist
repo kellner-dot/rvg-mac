@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Job label kept from the v2 install (continuity for verify and
+	     for the operator). The job label is NOT the bundle identifier:
+	     the bundle identifier lives in the .app's Info.plist. -->
+	<key>Label</key>
+	<string>com.seth.rvg</string>
+	<!-- The bundle executable is the whole identity: launching the
+	     .app's Mach-O launcher (not a bare .py via the python3 stub)
+	     is what makes TCC grants attach to the app. -->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Applications/RVG Mac.app/Contents/MacOS/RVGMac</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<!-- GUI session only: the agent needs the Aqua session for screen
+	     capture and input. It stops at logout by design. -->
+	<key>LimitLoadToSessionType</key>
+	<string>Aqua</string>
+	<key>StandardOutPath</key>
+	<string>/Users/sethkellner/rvd-mac/rvg-app.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/sethkellner/rvd-mac/rvg-app.err.log</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<!-- v2: PATH includes /opt/homebrew/bin so the agent finds
+		     cliclick (Homebrew, installed Nov 6 for Word 5). The v1
+		     staged plist lacked it; the live plist was edited to add
+		     it. v2 stages it correctly from the start. -->
+		<key>RVG_BIND</key>
+		<string>0.0.0.0</string>
+		<key>RVG_ALLOW</key>
+		<string>100.64.0.0/10</string>
+		<key>PATH</key>
+		<string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+</dict>
+</plist>

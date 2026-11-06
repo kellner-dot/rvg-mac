@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>RVG Mac</string>
+	<key>CFBundleExecutable</key>
+	<string>RVGMac</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.seth.rvgmac</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>RVG Mac</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.2.0</string>
+	<key>CFBundleVersion</key>
+	<string>1.2.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<!-- Background agent: no Dock icon, no menu bar, no Cmd-Tab entry.
+	     The agent is a server; its UI is the separate viewer page and
+	     the caller's own tooling. LSUIElement=true is the supported
+	     key for this; LSBackgroundOnly is legacy and is not used. -->
+	<key>LSUIElement</key>
+	<true/>
+</dict>
+</plist>
