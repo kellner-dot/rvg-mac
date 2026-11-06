@@ -236,20 +236,61 @@ try:
         fail("git add mac-app-v2 failed")
     p = run(["git", "status", "--short"], cwd=REL_WORKTREE)
     if not p.stdout.strip():
-        fail("sync produced no changes in rvg-mac (already at this version?)")
-    p = run(["git", "-c", "user.name=kavi7", "-c", "user.email=kavi7@local",
-             "commit", "-m",
-             "RVG Mac agent v%s (loader + self-update); source kavibot-readiness %s"
-             % (VERSION, src_commit[:12])],
-            cwd=REL_WORKTREE, env=env)
-    if p.returncode != 0:
-        fail("rvg-mac commit failed")
-    p = run(["git", "rev-parse", "HEAD"], cwd=REL_WORKTREE)
-    rel_commit = p.stdout.strip()
-    print("rvg-mac commit: %s" % rel_commit)
-    p = run(["git"] + cfg + ["push", "origin", "main"], cwd=REL_WORKTREE, env=env)
-    if p.returncode != 0:
-        fail("rvg-mac push main failed")
+        # Already synced: the copy produced no diff, which means the
+        # committed mac-app-v2/ content in rvg-mac is byte-identical to
+        # the staged package. (The pilot files were synced during the
+        # v1.2.0 publish, when the whole package was copied.) That is
+        # safe to release from, but only after verifying the committed
+        # content is the right version/channel and its manifest matches
+        # the staged agent SHA. Proceed from the existing HEAD.
+        print("sync produced no changes; verifying committed content matches staged files")
+        rel_script = os.path.join(
+            "mac-app-v2", os.path.relpath(SCRIPT, PKG))
+        rel_manifest = os.path.join(
+            "mac-app-v2", os.path.relpath(MANIFEST, PKG))
+        q = run(["git", "show", "HEAD:%s" % rel_script], cwd=REL_WORKTREE)
+        if q.returncode != 0:
+            fail("committed agent script %s missing from rvg-mac HEAD" % rel_script)
+        if 'VERSION = "%s"' % VERSION not in q.stdout:
+            fail("committed agent script is not version %s" % VERSION)
+        if 'UPDATE_REPO = "%s"' % REL_REPO not in q.stdout:
+            fail("committed agent UPDATE_REPO is not %s" % REL_REPO)
+        q = run(["git", "show", "HEAD:%s" % rel_manifest], cwd=REL_WORKTREE)
+        if q.returncode != 0:
+            fail("committed manifest %s missing from rvg-mac HEAD" % rel_manifest)
+        man_parts = q.stdout.strip().split()
+        if len(man_parts) < 2 or man_parts[0] != got_sha or \
+                man_parts[1].lstrip("*") != "rvg_mac.py":
+            fail("committed manifest does not match staged agent SHA")
+        print("committed content matches staged files (version %s, repo %s, SHA %s)"
+              % (VERSION, REL_REPO, got_sha[:12]))
+        p = run(["git", "rev-parse", "HEAD"], cwd=REL_WORKTREE)
+        rel_commit = p.stdout.strip()
+        print("using existing rvg-mac HEAD: %s" % rel_commit)
+        # The remote must already have this HEAD (it was pushed by the
+        # earlier publish). Verify; do not push a no-op.
+        p = run(["git"] + cfg + ["ls-remote", "origin", "HEAD"],
+                cwd=REL_WORKTREE, env=env)
+        remote_head = p.stdout.split()[0] if p.stdout.split() else ""
+        print("remote HEAD=%s local HEAD=%s"
+              % (remote_head[:12], rel_commit[:12]))
+        if remote_head != rel_commit:
+            fail("remote rvg-mac HEAD %s != local HEAD %s; push main first"
+                 % (remote_head, rel_commit))
+    else:
+        p = run(["git", "-c", "user.name=kavi7", "-c", "user.email=kavi7@local",
+                 "commit", "-m",
+                 "RVG Mac agent v%s (loader + self-update); source kavibot-readiness %s"
+                 % (VERSION, src_commit[:12])],
+                cwd=REL_WORKTREE, env=env)
+        if p.returncode != 0:
+            fail("rvg-mac commit failed")
+        p = run(["git", "rev-parse", "HEAD"], cwd=REL_WORKTREE)
+        rel_commit = p.stdout.strip()
+        print("rvg-mac commit: %s" % rel_commit)
+        p = run(["git"] + cfg + ["push", "origin", "main"], cwd=REL_WORKTREE, env=env)
+        if p.returncode != 0:
+            fail("rvg-mac push main failed")
 
     # ---- 2. tag + push ----
     print("== tag + push ==")
